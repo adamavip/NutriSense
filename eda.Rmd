@@ -1,0 +1,83 @@
+---
+title: "Exploratory Data Analysis"
+author: "Adama NDOUR"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(skimr)
+library(gtsummary)
+library(inspectdf)
+library(sf)
+library(WRS2) # 2way robust ANOVA
+library(ggridges)
+library(geodata)
+library(rnaturalearth)
+library(glue)
+library(epoxy)
+library(plotly)
+```
+
+```{r}
+ggplot2::theme_set(theme_bw())
+```
+
+
+## Import the data
+```{r message=FALSE, warning=FALSE}
+df<- readxl::read_excel("input/processed-data/combined_tamassa.xlsx")
+```
+
+## Overview of the data
+```{r message=FALSE, warning=FALSE}
+glimpse(df)
+```
+
+## Convert latitude and longitude in double
+```{r}
+df$latitude<- as.numeric(df$latitude)
+df$longitude<- as.numeric(df$longitude)
+```
+
+## Drop NAs values
+```{r}
+df <- df %>% drop_na(latitude,longitude)
+```
+
+## Maize growing areas
+```{r message=FALSE, warning=FALSE, fig.width=12}
+df_uniq <-df %>% select(c("longitude","latitude","country")) %>%
+  # filter the outliers
+  filter(latitude<30) %>% 
+  distinct(longitude,latitude,country) 
+
+crop_areas<- st_as_sf(df_uniq,coords=c("longitude","latitude"), crs=4326)
+#crop_areas$country<- df_uniq$country
+
+
+# Load Africa shapefile
+# Get world countries data
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Filter for African countries
+africa <- world[world$continent == "Africa", ]
+
+p<-ggplot() +
+  geom_sf(data = africa, fill = NA, color = "darkgrey")+
+  #geom_sf_label(data = Eth_regions,aes(label=NAME_2))+
+   geom_sf(data=crop_areas,aes(color=country), na.rm=T) +
+  #scale_color_gradient2(low = "blue",high = "green")+
+  #scale_color_continuous(type = "viridis")+
+  coord_sf()+
+  labs(color="Countries")+
+  theme_bw()
+ggsave(p, file="output/africa_not_data_map.png", width = 6, height = 4, dpi = 300)
+p
+```
